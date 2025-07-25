@@ -27,6 +27,7 @@ import (
 // Options are options for the Handler accepted by New
 type Options struct {
 	AppendOnly     bool // if set, delete actions are not allowed
+	ReadOnly       bool // if set, delete and create/save actions are not allowed
 	Debug          bool
 	NoVerifyUpload bool
 
@@ -334,7 +335,7 @@ func (h *Handler) deleteConfig(w http.ResponseWriter, _ *http.Request) {
 		log.Println("deleteConfig()")
 	}
 
-	if h.opt.AppendOnly {
+	if h.opt.ReadOnly || h.opt.AppendOnly {
 		httpDefaultError(w, http.StatusForbidden)
 		return
 	}
@@ -551,6 +552,12 @@ func (h *Handler) saveBlob(w http.ResponseWriter, r *http.Request) {
 		log.Println("saveBlob()")
 	}
 
+	if h.opt.ReadOnly {
+		log.Printf("Read only mode prevents all saveBlob operations")
+		httpDefaultError(w, http.StatusForbidden)
+		return
+	}
+
 	objectType, objectID := h.getObject(r.URL.Path)
 	if objectType == "" || objectID == "" {
 		h.internalServerError(w, fmt.Errorf(
@@ -734,7 +741,8 @@ func (h *Handler) deleteBlob(w http.ResponseWriter, r *http.Request) {
 			"cannot determine object type or id: %s", r.URL.Path))
 		return
 	}
-	if h.opt.AppendOnly && objectType != "locks" {
+
+	if h.opt.ReadOnly || (h.opt.AppendOnly && objectType != "locks") {
 		httpDefaultError(w, http.StatusForbidden)
 		return
 	}
@@ -770,6 +778,11 @@ func (h *Handler) createRepo(w http.ResponseWriter, r *http.Request) {
 
 	if r.URL.Query().Get("create") != "true" {
 		httpDefaultError(w, http.StatusBadRequest)
+		return
+	}
+
+	if h.opt.ReadOnly {
+		httpDefaultError(w, http.StatusForbidden)
 		return
 	}
 

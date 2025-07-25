@@ -27,6 +27,7 @@ type Server struct {
 	NoAuth               bool
 	ProxyAuthUsername    string
 	AppendOnly           bool
+	ReadOnly             bool
 	PrivateRepos         bool
 	Prometheus           bool
 	PrometheusNoAuth     bool
@@ -92,6 +93,7 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Pass the request to the repo.Handler
 	opt := repo.Options{
 		AppendOnly:      s.AppendOnly,
+		ReadOnly:        s.ReadOnly,
 		Debug:           s.Debug,
 		QuotaManager:    s.quotaManager, // may be nil
 		PanicOnError:    s.PanicOnError,
