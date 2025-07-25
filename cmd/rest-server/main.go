@@ -69,7 +69,8 @@ func newRestServerApp() *restServerApp {
 	flags.StringVar(&rv.Server.ProxyAuthUsername, "proxy-auth-username", rv.Server.ProxyAuthUsername, "specifies the HTTP header containing the username for proxy-based authentication")
 	flags.BoolVar(&rv.Server.NoVerifyUpload, "no-verify-upload", rv.Server.NoVerifyUpload,
 		"do not verify the integrity of uploaded data. DO NOT enable unless the rest-server runs on a very low-power device")
-	flags.BoolVar(&rv.Server.AppendOnly, "append-only", rv.Server.AppendOnly, "enable append only mode")
+	flags.BoolVar(&rv.Server.AppendOnly, "append-only", rv.Server.AppendOnly, "enable append only mode (prohibits --read-only)")
+	flags.BoolVar(&rv.Server.ReadOnly, "read-only", rv.Server.ReadOnly, "enable read only mode (prohibits --append-only)")
 	flags.BoolVar(&rv.Server.PrivateRepos, "private-repos", rv.Server.PrivateRepos, "users can only access their private repo")
 	flags.BoolVar(&rv.Server.Prometheus, "prometheus", rv.Server.Prometheus, "enable Prometheus metrics")
 	flags.BoolVar(&rv.Server.PrometheusNoAuth, "prometheus-no-auth", rv.Server.PrometheusNoAuth, "disable auth for Prometheus /metrics endpoint")
@@ -111,6 +112,10 @@ func (app *restServerApp) ListenerAddress() net.Addr {
 func (app *restServerApp) runRoot(_ *cobra.Command, _ []string) error {
 	log.SetFlags(0)
 
+	if app.Server.ReadOnly && app.Server.AppendOnly {
+		return errors.New("append-only and read-only modes cannot both be enabled at the same time")
+	}
+
 	log.Printf("Data directory: %s", app.Server.Path)
 
 	if app.CPUProfile != "" {
@@ -144,6 +149,12 @@ func (app *restServerApp) runRoot(_ *cobra.Command, _ []string) error {
 	handler, err := restserver.NewHandler(&app.Server)
 	if err != nil {
 		log.Fatalf("error: %v", err)
+	}
+
+	if app.Server.ReadOnly {
+		log.Println("Read only mode enabled")
+	} else {
+		log.Println("Read only mode disabled")
 	}
 
 	if app.Server.AppendOnly {
